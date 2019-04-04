@@ -1,0 +1,480 @@
+---
+title: "Where are our Books? 2018 Sample Inventory of CUL Open Stacks"
+author: ""
+date: "`r format(Sys.time(), '%d %B %Y %H:%M')`"
+output:
+  html_document: default
+  pdf_document: default
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Investigators
+
+* Adam Chandler, study design, statistical analysis
+* Wendy Wilcox, study design, project management, data collection
+* Joanne Leary, study design, data collection
+
+
+## Acknowledgements
+
+* Jenn Colt, Google App installation
+* Sara Amato (EAST consortium data analyst) assisted with sampling method, software installation, and data sharing
+* Darla Critchfield, Kim Laine, Michelle Hubbell, Bethany Silfer Law Library and Mann Library Access Services staff, data collection  
+
+
+# Introduction
+
+The impetus for conducting this "validation"" study stemmed from a 2017 Taskforce Report on the elimination of tattletaping for open stack materials.  Despite the charge to discontinue tattletaping of library materials, members of the group could not recommend proceeding with the plan given significant opposition to this decision:  “Even though members of our task force are not confident that it is actually preventing theft we must recommend continuing tattle-taping because staff, primarily selectors, clearly oppose changing the policy at this time.” The task force felt that quantitative data was necessary before proceeding and recommended conducting an inventory of the library’s open stacks collections using the methodology (and tools, perhaps) employed in the EAST validation study to use as a baseline to inform present and future decision making on this issue.  
+
+What does "validation" study mean?   
+
+The Eastern Academic Scholar’s Trust is a partnership of college and university libraries dedicated to the shared retention of print resources. Fifty-two libraries are retention partners in the consortium; partners range from small liberal arts institutions such as Bryn Mawr and Smith College to larger universities such as New York University, Florida State University and University of Pittsburg.  As part of their retention agreements, the libraries agreed to participate in a validation study designed to quantify the likelihood of finding a monograph in each institutions library stacks.  “In order to evaluate the statistical likelihood that a retained volume exists on the shelves of any of the institutions, the EAST incorporated sample-based validation studies. The specific goals of this study were to establish and document the degree of confidence, and the possibility of error, in any EAST committed title being available for circulation. Results of the validation sample studies help predict the likelihood that titles selected for retention actually exist and can be located in the collection of a Retention Partner, and are in useable condition.” [https://eastlibraries.org/validation] . Overall, EAST reported a 97% "accounted for"" rate (accounted for includes those items previously determined to be in circulation based on an automated check of the libraries’ ILS).   
+
+The Access Services Committee and Adam Chandler, chair of the Tattletape Task Force, were charged with conducting a validation study of Cornell University Library’s open stacks.  Given the extensive data provided by the EAST validation study, it was decided that CUL would sample our collection using their study methodology.  Our goal was to benchmark our collection against the 52 partner libraries in EAST as a means of understanding the availability of the CUL collection.  
+
+
+# Value of research
+
+
+#### Student experience  
+* When a patron walks into the Cornell University Library stacks in search of a monograph, what are the odds that they will find it? 
+* Are there differences in the quality of our stacks across campus unit libraries?
+
+#### Stewardship of university resources
+* What is our return on investment when we tattletape our open stack collection?
+* What percentage of our collection is accounted for (on shelf in correct location or checked out to a patron)?
+* Are we in a position to enter into retention partnerships?
+
+
+
+
+```{r prepare_data, warning = FALSE, echo = FALSE, message = FALSE}
+
+# prepare data
+
+library(tidyverse)
+library(stringr)
+library(forcats)
+library(readxl)
+library(broom)
+library(knitr)
+library(infer)
+library(janitor)
+
+
+# load data
+
+df <- read_rds("data/working_df_for_model/cul_validation_201810.rds")
+
+# Set parameters
+
+```
+
+
+
+
+## Data and method
+
+We are grateful to the East Consortium for generously sharing their methodology and associated Google App for data collection.  Jenn Colt was able to take their models and create a Cornell instance of the Google App for the Cornell Validation Study.  
+
+We sampled 6006 monograph across campus. Some caveats about Cornell’s data sample: the Library Annex was excluded because the stacks there are closed; Fine Arts was excluded because they are in the middle of a building transition; location codes in HLM were merged into one group. Finally, some items were removed from the dataset after the initial sample because they did not actually fit the criteria of our study (no circ items), leaving `r nrow(df) items in our dataset. (see Appendix A).
+
+Wendy Wilcox led the team that did the data collection in the stacks which too place between April and July 2018.  The data collection team worked through the sample dataset, verifying the presence of items in the stacks and the corresponding condition of the item.  For items not found, the team checked item statuses in the library catalog.  Moving forward in our report, AF (accounted for) will equal checked out items plus items verified as present in the stacks.  
+AF (accounted for) = checkedout + present  
+
+Cornell’s aggregate AF rate is 96.4% and we are 95% confident that the true proportion of accounted for monographs across CUL is between 0.959, 0.969 (see Appendix B).  
+ 
+AF (accounted for) = checkedout + present  
+
+
+
+
+# Findings and Discussion
+
+## How does Cornell compare to the EAST consortium libraries?
+
+```{r, echo = FALSE, warning=FALSE, cache=TRUE}
+
+set.seed(42)
+
+replimit = 1000
+
+p_hat <- df %>%
+  summarise(stat = mean(is_accountedfor == "1")) %>%
+  pull()
+
+boot <- df %>%
+  specify(response = is_accountedfor, success = "1") %>%
+  generate(reps = replimit, type = "bootstrap") %>%
+  calculate(stat = "prop")
+
+se <- boot %>%
+  summarize(sd(stat)) %>%
+  pull()
+
+```
+
+```{r, echo= FALSE, warning=FALSE}
+
+# load EAST dataset
+
+df_east_raw <- read_excel("data/east_consortium/TattleTapeSurveyResultsToShare.xlsx", skip = 1)
+
+df_east_raw <- df_east_raw[1:34,1:11]
+  
+
+# Glimpse EAST dataset
+df_east <- df_east_raw %>%
+  filter(!is.na(library)) %>%
+  filter(!is.na(validation_score)) %>%
+  select(library, validation_score) %>%
+  arrange(desc(validation_score))
+
+
+# run simulation on EAST dataset
+
+p_hat_east <- df_east %>%
+  summarise(stat = mean(validation_score)) %>%
+  pull()
+# p_hat_east
+
+boot_east <- df_east %>%
+  specify(response = validation_score) %>%
+  generate(reps = replimit, type = "bootstrap") %>%
+  calculate(stat = "mean")
+# boot_east
+
+se_east <- boot_east %>%
+  summarize(sd(stat)) %>%
+  pull()
+# se_east
+
+
+```
+
+
+```{r, echo = FALSE}
+
+# combine CUL and EAST into one boot df for visualzation
+
+
+t_boot <- boot
+t_boot_east <- boot_east
+
+t_boot$org <- "cul" 
+t_boot_east$org <- "east"
+
+boot_all <- rbind(t_boot, t_boot_east)
+
+```
+
+
+Cornell's aggregate accounted for rate is <b>`r round(mean( as.numeric(df$is_missing) == 1),3) * 100`%</b> and we are 95% confident that the true proportion of accounted for monographs across CUL is between `r c(round(p_hat - 2 * se,3), round(p_hat + 2 * se,3) ) `.
+
+# TODO: INSERT comparison of EAST and CUL, with confidence intervals
+
+
+
+
+## There significant differences across CUL units in the percentage of monographs accounted for.
+
+```{r, echo = FALSE, warning=FALSE, message=FALSE}
+
+df_groups <- df %>%
+  group_by(location_group) %>%
+  summarise(total = n())
+
+
+get_boot <- function(df, repnum) {
+  df %>%
+    specify(response = is_accountedfor, success = "1") %>%
+    generate(reps = repnum, type = "bootstrap") %>%
+    calculate(stat = "prop")
+}
+
+df_boot <- data.frame()
+
+for(j in 1:nrow(df_groups)) {
+  df_subset <- df %>%
+    filter(location_group == df_groups$location_group[j])
+  df_ret <- get_boot(df_subset,replimit)
+  df_ret$location_group <- df_groups$location_group[j]
+  df_boot <- rbind(df_boot, df_ret)
+}
+
+```
+
+```{r, echo = FALSE, warning=FALSE, message=FALSE}
+df_group_se <- df_boot %>%
+  group_by(location_group) %>%
+  summarize(mean = mean(stat),
+            se = sd(stat)) %>%
+  inner_join(df_groups) %>%
+  filter(!total < 30) %>%
+  mutate(num_missing = total - round(total * mean),
+         moe = se * 2,
+         low_ci = mean - moe,
+         hi_ci = mean + moe) %>%
+  mutate(hi_ci = ifelse(hi_ci > 1, 1, hi_ci) ) %>%
+  arrange(-mean)
+
+```
+
+
+Table: 
+
+```{r, echo = FALSE, warning=FALSE, message=FALSE}
+
+df_group_se %>%
+  select(-se)
+
+```
+
+INSERT narrative about differences across CUL libraries, in terms of the samples drawn
+
+
+Figure: 
+
+
+```{r, echo = FALSE, warning=FALSE, message=FALSE}
+
+ggplot(df_group_se, aes(y=mean, x=  fct_reorder(location_group, -mean), label = total)) +
+#  geom_errorbar(aes(ymin=mean-se, ymax=mean+se, width = 0.1)) +
+  geom_errorbar(aes(ymin=mean- (se * 2), ymax=mean + (se *2), width = 0.1)) +
+    geom_point(color="red") +
+#  scale_y_continuous(limits = c(.88,1.005), breaks = seq(.88,1.0, by = .01)) +
+    scale_y_continuous(limits = c(.88,1.03), breaks = seq(.88,1.03, by = .01)) +
+  labs(title = "\nFigure: CUL monograph accounted results, by location") +
+  xlab("location") +
+  ylab("proportion accounted for") +
+#  geom_hline(yintercept = p_hat, col = "blue")
+    geom_hline(yintercept = p_hat, linetype = "dashed")
+#  coord_flip()
+
+ggsave("output/cul_monograph_results_by_loc.png", dpi = 600, width = 8, height = 5)  
+
+
+```
+
+
+INSERT continue narrative about differences across CUL libraries in terms of statistical inference
+
+
+## Tattle-tape: What evidence do we have that security stripping improves AF rates? In other words, what is our estimate of the effect size (i.e., return on investment) for libraries that operate security systems?
+
+
+### Cornell
+
+
+At Cornell, we had an experiment ready to be conducted because there is one unit that does not use security stripping or gates, Law.  Our intuition might tell us that the Law AF rate should therefore be lower than the other units. That is not the case. See Figure: X. The Law mean AF (accounted for rate) in this sample is right in the middle of pack, with confidence intervals overlapping other units that have both higher and lower AF rates.  
+
+### EAST surveyed libraries that participated in their validation study about security practices
+
+Sometime after completing it's validation study, EAST conducted a survey of participating libraries to find out about the theft deterrence practices.  32 libraries responded. The library names are anonymized.  Here are five, for example.
+
+
+```{r, echo=FALSE}
+
+df_east_raw <- read_excel("data/east_consortium/TattleTapeSurveyResultsToShare.xlsx", 
+    skip = 1)
+df_east_raw <- df_east_raw[1:32,c(1,3,2)]
+df_east_raw$tattletape_yes_no <- as.factor(df_east_raw$tattletape_yes_no)
+df_east <- df_east_raw %>%
+  arrange(library)
+
+kable(head(df_east, 5))
+
+df_east %>%
+  group_by(tattletape_yes_no) %>%
+  summarize(n = n(),
+            mean = mean(validation_score))
+
+# bootstrap simulation
+
+
+df_east_yes <- df_east %>%
+  filter(tattletape_yes_no == "Yes")
+
+df_east_no <- df_east %>%
+  filter(tattletape_yes_no == "Yes")
+
+
+reps_east = 1000
+boot_east_yes <- df_east %>%
+  filter(tattletape_yes_no == "Yes") %>%
+  specify(response = validation_score) %>% 
+  generate(reps = reps_east) %>% 
+  calculate(stat = "mean")
+
+sum_boot_east_yes <- boot_east_yes %>%
+  summarise(af = mean(stat),
+            se = sd(stat),
+            total = n()) %>%
+  mutate(status = "yes")
+
+
+boot_east_no <- df_east %>%
+  filter(tattletape_yes_no == "No") %>%
+  specify(response = validation_score) %>% 
+  generate(reps = reps_east) %>% 
+  calculate(stat = "mean")
+
+sum_boot_east_no <- boot_east_no %>%
+  summarise(af = mean(stat),
+            se = sd(stat),
+            total = n()) %>%
+  mutate(status = "no")
+
+
+sum_boot_east <- rbind(sum_boot_east_no, sum_boot_east_yes)
+
+sum_boot_east <- sum_boot_east %>%
+  mutate(n = ifelse(status == "yes", "22", "10"))
+
+#sum_boot_east
+
+```
+
+
+```{r, echo=FALSE}
+ggplot(sum_boot_east, aes(y=af, x= as.factor(status)) ) +
+  geom_errorbar(aes(ymin=af - 2 * se, ymax=af + 2 * se, width = 0.1)) +
+  geom_point(color="red") +
+  scale_y_continuous(limits = c(.95,1), breaks = seq(.95,1, by = .01)) +
+  labs(title = "EAST libraries with security systems vs. those without", subtitle="no effect") +
+  xlab("has security system") +
+  ylab("bootstrap accounted for rate")
+
+```
+
+
+INSERT: Estimate of total unaccounted for items by CUL location
+
+
+In this experiment we divided the EAST libraries into two groups, the 22 libraries in the survey with security systems vs. the 10 libraries with no security systems, and generated accounted for (AF) rates and standard errors using bootstrap simulation for each group. The difference in AF rates can be explained by random noise, as we see from the overlapping 95% confidence intervals. We therefore conclude that the effect size of having a security system is zero. 
+
+The validation study was useful in determining the availability of CUL materials in the open stacks; when patrons seek a monograph in the stacks, they are able to locate that item 96.4% of the time.  This translates into a loss rate of 3.6% of materials in the open stacks.
+
+[Not sure about this paragraph. It seems to contradict our conclusion. - Adam] Tattletaping prevents theft of materials.  However, we know that the theft of materials is only one component of lost or missing items.  We know from conducting tracers for wanted items, that a percentage of lost materials are actually due to misfiling of materials in the open stacks.
+
+We wish to decouple the idea that tattletapping is directly correlated to reducing lost items in the open stacks.  As we have shown, there is minimal differences in the AF rate in libraries that tattletape versus libraries that do not tattletape.  
+
+INSERT: This research is a significant contribution to our understanding
+
+## Recommendations 
+
+
+```{r}
+
+df_orig_sample_summary <- read_csv("data/original_sample_draw/sum_comparison_all_vs_sample.csv")
+df_orig_sample_summary <- clean_names(df_orig_sample_summary)
+df_orig_sample_summary$location_group <- df_orig_sample_summary$perm_location_code
+df_orig_sample_summary <- df_orig_sample_summary %>%
+  filter(!perm_location_code == "vet") 
+
+df_unaf_estimates <- df_orig_sample_summary %>%
+  select(perm_location_code, location_group, n_x) %>%
+  rename(pop = n_x) %>%
+  mutate(location_group = fct_recode(perm_location_code,
+                                    "hlm" = "ilr",
+                                    "hlm" = "hote",
+                                    "hlm" = "jgsm",
+                                    "asia" = "asia",
+                                    "asia" = "was",
+                                    "asia" = "ech",
+                                    "asia" = "sasa")) %>%
+  group_by(location_group) %>%
+  summarise(pop_total = sum(pop)) %>%
+  arrange(desc(pop_total))
+
+
+# Need to add the proportions to the df_group_se df when it is created above.
+# Below is wrong: Olin estiamtes for example should look like this:
+# > 1648040 * .974
+# [1] 1605191
+# > 1648040 * (1 - .974)
+# [1] 42849.04
+# > 1648040 * (1 - .967)
+# [1] 54385.32
+# > 1648040 * (1 - .979)
+# [1] 34608.84
+# > 
+
+
+# df_unaf_estimates %>%
+#   left_join(df_group_se, by = "location_group") %>%
+#   select(-total, -num_missing) %>%
+#   mutate(unafperc_hat = 1 - mean,
+#          moe = se * 2,
+#          unaf_hat = pop_total * unafperc_hat,
+#          moenum = unaf_hat * moe,
+#          cilow = unaf_hat - moenum,
+#          cihigh = unaf_hat + moenum) %>%
+#   select(-unafperc_hat, -moenum) %>%
+#   mutate_at(vars(unaf_hat:cihigh), funs(round))
+
+
+```
+
+1. Where confidence intervals are widest, do more sampling in Cornell unit libraries to improve the accuracy of our estimates.  
+
+2. Create a statistical model that includes multiple variables to identify items with higher probability of being unaccounted for in the open stacks. A statistical model will inform us about the factors at play and help us to increase the availability of open stacks titles. This work is already underway.  
+3. Shift resoruces from seecurity stripping to stacks management. Security is only one variable that might account for differences in the percentage of items accounted for across different libraries, and from the empirical evidence we've gathered, it isn't a variable with any predictive power here or across the EAST consortium.  Therefore, we believe that a better investment is more support for open stacks control and management at units with lower accounted for rates.  
+
+
+# Appendix
+
+
+## Data
+
+
+INSERT Adam and Joanne’s explanation about the sample parameters. 
+
+```{r}
+
+glimpse(df)
+
+```
+
+
+ 
+## Bootstrap simulation
+
+```{r}
+
+library(infer)
+set.seed(42)
+
+replimit = 1000
+
+p_hat <- df %>%
+  summarise(stat = mean(is_accountedfor == "1")) %>%
+  pull()
+
+boot <- df %>%
+  specify(response = is_accountedfor, success = "1") %>%
+  generate(reps = replimit, type = "bootstrap") %>%
+  calculate(stat = "prop")
+
+se <- boot %>%
+  summarize(sd(stat)) %>%
+  pull()
+
+```
+
+
+# Bootstrap density comparison, EAST and CUL
+
+
+```{r, echo = FALSE}
+ggplot(boot_all, aes(x = stat, fill = org)) +
+  geom_density(alpha=0.5) +
+  annotate("text", x = p_hat, y = 25, label = "Cornell", size = 3) +
+  annotate("text", x = p_hat_east, y = 25, label = "EAST", size = 3) +
+  scale_x_continuous(breaks = seq(0.955,0.99,by=.005))
+
+```
