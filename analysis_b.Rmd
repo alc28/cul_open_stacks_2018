@@ -3,8 +3,8 @@ title: "Where are our Books? 2018 Sample Inventory of CUL Open Stacks"
 author: ""
 date: "`r format(Sys.time(), '%d %B %Y %H:%M')`"
 output:
-  pdf_document: default
   html_document: default
+  pdf_document: default
   word_document: default
 ---
 
@@ -206,7 +206,7 @@ ggplot(df_comp_cul_east, aes(y=mean, x= as.factor(org)) ) +
   xlab("") +
   ylab("accounted for estimates with 95% confidence intervals")
 
-
+ggsave("output/EAST_libraries_compared_to_CUL_sample.png", dpi = 600, width = 8, height = 6)
 
 ```
 
@@ -259,6 +259,7 @@ df_group_se <- df_boot %>%
 
 
 
+
 ```{r}
 
 ggplot(df_group_se, aes(y=1-mean, x=  fct_reorder(location_group, mean))) +
@@ -267,6 +268,9 @@ ggplot(df_group_se, aes(y=1-mean, x=  fct_reorder(location_group, mean))) +
   xlab("location") +
   ylab("unaccounted for estimates") +
   labs(title = "\nFigure 2: CUL monograph unaccounted percentage, by location")
+
+ggsave("output/CUL_monograph_unaccounted_percentage_by_location.png", dpi = 600, width = 8, height = 5)
+
   
 ```
 
@@ -406,6 +410,8 @@ ggplot(sum_boot_east, aes(y=mean, x= as.factor(status)) ) +
   labs(title = "Figure 4: EAST libraries with security systems vs. those without", subtitle="") +
   xlab("has security system") +
   ylab("accounted for estimates with 95% confidence intervals")
+
+ggsave("output/EAST_libraries_with_security_systems_vs_those_without.png", dpi = 600, width = 8, height = 6)  
 
 ```
 
